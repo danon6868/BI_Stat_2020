@@ -1,0 +1,182 @@
+---
+title: "Проект №1 “Насколько стара мидия”"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=F, message=FALSE, warning=FALSE}
+install.packages('dplyr')
+install.packages('ggplot2')
+install.packages('gridExtra')
+```
+Импортируем необходимые библиотеки
+```{r, message=FALSE, warning=FALSE}
+library('dplyr')
+library('ggplot2')
+library("gridExtra")
+```
+# Подготовка данных
+Так как данные представлены в виде нескольких файлов в формете csv, то для удобства обработки напишем функцию, которая будет объединять их в единую таблицу. Функция принимает аргумент directory - путь до папки, в которой хранятся необходимые файлы.
+```{r, message=FALSE}
+data_join <- function(directory){
+    setwd(directory)
+    df <- data.frame()
+    for (file in list.files()){
+       if (endsWith(file, suffix = '.csv')){
+           data <- read.csv(file)
+           df <- rbind(df, data)
+    }
+  }
+  return(df)
+}
+```
+Далее загрузим данные, произведем приведение типов там, где это необходимо, а также удалим пропущенные значения, так как мы не распологаем дополнительной информацией, на основании которой мы можем предположить чему могут быть равны эти значения. Данный подход к обработке пропущенных значений не является единственным. Иногда можно заменять NA на среднее (не очень правильно, так как непонятно, на каком основании это делать), также можно попробовать построить модель, которая будет предсказывать пропущенные значения на основании имеющихся данных, например, длину молюска по его диаметру, возрасту и полу.
+
+# EDA
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+directory = 'D:/R_project_1/'
+mollusk_data <- data_join(directory)
+mollusk_data <- mollusk_data %>% mutate_all(as.numeric)
+colnames(mollusk_data)[2] <- 'Sex'
+mollusk_data$Sex <- factor(mollusk_data$Sex, c(1, 2, 3), labels = c('Male', 'Female', 'Uvenile'))
+mollusk_data <- na.omit(mollusk_data)
+```
+
+## Визуализация переменных на наличие выбросов
+```{r, message=FALSE, warning=FALSE, fig.height=10, fig.width=12, echo=FALSE}
+rings <- ggplot(mollusk_data, aes(x = Sex, y = Rings))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()
+len <- ggplot(mollusk_data, aes(x = Sex, y = Length))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()
+diam <- ggplot(mollusk_data, aes(x = Sex, y = Diameter))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()
+height <- ggplot(mollusk_data, aes(x = Sex, y = Height))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()
+ww <- ggplot(mollusk_data, aes(x = Sex, y = Whole_weight))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()+
+  ylab('Whole weight')
+sw <- ggplot(mollusk_data, aes(x = Sex, y = Shucked_weight))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()+
+  ylab('Shucked weight')
+vw <- ggplot(mollusk_data, aes(x = Sex, y = Viscera_weight))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()+
+  ylab('Viscera weight')
+sw <- ggplot(mollusk_data, aes(x = Sex, y = Shell_weight))+
+  geom_violin(fill='red', alpha = 0.2)+
+  geom_boxplot(fill='green', alpha = 0.2)+
+  theme_classic()+
+  ylab('Shell weight')
+grid.arrange(rings, len, diam, height, ww, sw, vw, sw, ncol=4)
+```
+На данных графиках видно, что практически по всех количественных переменных присутствуют выбросы. Для дальнейшего анализа я решил убрать их, используя следующую функцию:
+```{r}
+outliers.rm <- function(x){    
+    q <- quantile(x, 0.25) + quantile(x, 0.75)    
+    return(abs(x - q/2) <= 2*IQR(x))}
+
+mollusk_without_outliers <- mollusk_data %>% filter(across(-c('Sex'), outliers.rm))
+```
+## Оценка наличия взаимосвязи между переменными
+На данном графике видна положительная взаимосвязь между количественными переменными.
+```{r, echo=FALSE, fig.align='center'}
+pairs(select(mollusk_without_outliers, -Sex))
+```
+На основании проведенного EDA можно сформулировать следующие гипотезы:
+
+1. Высота ювенильных особей меньше, чем высота взрослых;
+2. Особи мужского пола обладают большим количеством колец, чем особи женского;
+3. Существует линейная зависимость между диаметром и весом молюска.
+
+# Дальнейший анализ данных
+1. Cреднее значение и стандартное отклонение переменной Length для
+моллюсков разного пола:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+stat_summ <- mollusk_without_outliers %>% group_by(Sex) %>% summarise(mean_length = round(mean(Length), 2), sd_length = round(sd(Length), 2))
+stat_summ
+```
+2. Значение переменной Height не превышает 0.165 у `r round(sum(mollusk_without_outliers$Height <= 0.165) / length(mollusk_without_outliers$Height) * 100, 2)` % молюсков.
+3. Значение переменной Length, которое больше, чем у 92 % от всех наблюдений равно `r as.numeric(quantile(mollusk_without_outliers$Length, 0.92))`.
+4. Произвел преобразование стандартизации переменной Length.
+```{r, echo=FALSE}
+mollusk_without_outliers$Length_z_scores <- (mollusk_without_outliers$Length - mean(mollusk_without_outliers$Length)) / sd(mollusk_without_outliers$Length)
+```
+5. Сравнение диаметра молюсков с числом колец 5 и 15.
+
+Для начала построим график:
+```{r, echo=FALSE}
+ggplot(filter(mollusk_without_outliers, Rings == 5 | Rings == 15), aes(x = factor(Rings), y = Diameter))+
+  geom_boxplot(fill='green', alpha=0.2)+
+  theme_classic()+
+  xlab('Rings')
+```
+
+Из данного графика видно, что диаметр молюсков с числом колец 15 больше, чем данный параметр у молюсков с числом колец 5.
+
+Далее проверим гипотезу о равенстве средних между данными группами используя t-критерий Стьюдента.
+```{r, echo=FALSE}
+stat <- t.test(mollusk_without_outliers$Diameter[mollusk_without_outliers == 5], mollusk_without_outliers$Diameter[mollusk_without_outliers == 15])
+```
+```{r, echo=FALSE}
+# Функция для печати p-value
+man_print <- function(x){
+  if (x < 0.001){
+    return('p-value << 0.05')
+  }
+  else {
+    return(paste('p-value =', as.character(x)))
+  }
+}
+```
+
+Значение t-статистики оказалось равно `r round(stat$statistic, 2)`, также `r man_print(stat$p.value)` при количестве наблюдений `r length(mollusk_without_outliers$Diameter[mollusk_without_outliers == 5])` и `r length(mollusk_without_outliers$Diameter[mollusk_without_outliers == 15])` в выборках молюсков с 5 и 15 кольцами соответственно. Следовательно можно сделать вывод у существенных различиях в значениях диаметров у молюсков с 5 и 15 кольцами.
+
+6. Взаимосвязь переменных Diametr и Whole_weight.
+
+Для начала проверим нормальность распределения данных переменных, используя Критерий Шапиро — Уилка.
+```{r, echo=FALSE}
+shapiro.test(mollusk_without_outliers$Diameter)
+shapiro.test(mollusk_without_outliers$Whole_weight)
+```
+Видно, что распределения данных переменных значимо отличаются от нормального, следовательно, для оценки взаимосвязи данных переменных вычислим коэффициент корреляции Спирмена:
+```{r, echo=FALSE, warning=FALSE}
+cor.test(mollusk_without_outliers$Diameter, mollusk_without_outliers$Whole_weight, method = "spearman")
+```
+Эти данные свидетельствуют о наличии сильной взаимосвязи между исследуемыми переменными.
+```{r, echo=FALSE, message=FALSE}
+mollusk_without_outliers %>% ggplot(aes(x = Diameter, y = Whole_weight))+
+  geom_point(aes(col = Sex))+
+  geom_smooth()+
+  theme_classic()+
+  ylab('Whole weight')
+```
+
+По данным графика видно, что при значениях диаметра меньших 0.4 линейная зависимость нарушается. На мой взгляд, эту зависимость можно было бы назвать квадратичной (скорее степень поменьше). В целом вес тела зависит от его объема. В данном исследовании измеряли диаметр молюсков и их высоту, а значит в первом приближении можно представить их в виде цилиндров, а для цилиндра V ~ (d/2)^2. Подобная зависимость и наблюдается на графике. Постараюсь проверить данную гипотезу в дополнительной части задания.
+
+
+
+
+
+
+
