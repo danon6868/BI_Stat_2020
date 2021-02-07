@@ -1,0 +1,299 @@
+---
+title: "Проект №1 “Насколько стара мидия”"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=F, message=FALSE, warning=FALSE}
+if (!require('dplyr')){
+  install.packages('dplyr')
+}
+if (!require('ggplot2')){
+  install.packages('ggplot2')
+}
+if (!require('gridExtra')){
+  install.packages('gridExtra')
+}
+```
+# Подготовка данных
+Так как данные представлены в виде нескольких файлов в формете csv, то для удобства обработки напишем функцию, которая будет объединять их в единую таблицу. Функция принимает аргумент directory - путь до папки, в которой хранятся необходимые файлы.
+```{r, message=FALSE}
+data_join <- function(directory){
+    setwd(directory)
+    df <- data.frame()
+    for (file in list.files()){
+       if (endsWith(file, suffix = '.csv')){
+           data <- read.csv(file)
+           df <- rbind(df, data)
+    }
+  }
+  return(df)
+}
+```
+Далее загрузим данные, произведем приведение типов там, где это необходимо, а также удалим пропущенные значения, так как мы не распологаем дополнительной информацией, на основании которой мы можем предположить чему могут быть равны эти значения. Данный подход к обработке пропущенных значений не является единственным. Иногда можно заменять NA на среднее (не очень правильно, так как непонятно, на каком основании это делать), также можно попробовать построить модель, которая будет предсказывать пропущенные значения на основании имеющихся данных, например, длину молюска по его диаметру, возрасту и полу.
+
+# EDA
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+directory = 'D:/R_project_1/'
+mollusk_data <- data_join(directory)
+mollusk_data <- mollusk_data %>% mutate_all(as.numeric)
+colnames(mollusk_data)[2] <- 'Sex'
+mollusk_data$Sex <- factor(mollusk_data$Sex, c(1, 2, 3), labels = c('Male', 'Female', 'Uvenile'))
+mollusk_data <- na.omit(mollusk_data)
+```
+
+## Визуализация переменных на наличие выбросов
+```{r, message=FALSE, warning=FALSE, fig.height=10, fig.width=12, echo=FALSE}
+rings <- ggplot(mollusk_data, aes(x = Sex, y = Rings))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Количество колец')
+len <- ggplot(mollusk_data, aes(x = Sex, y = Length))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Длина')
+diam <- ggplot(mollusk_data, aes(x = Sex, y = Diameter))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Диаметр')
+height <- ggplot(mollusk_data, aes(x = Sex, y = Height))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Высота')
+ww <- ggplot(mollusk_data, aes(x = Sex, y = Whole_weight))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Масса')
+sw <- ggplot(mollusk_data, aes(x = Sex, y = Shucked_weight))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Масса без раковины')
+vw <- ggplot(mollusk_data, aes(x = Sex, y = Viscera_weight))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Масса внутренностей')
+sw <- ggplot(mollusk_data, aes(x = Sex, y = Shell_weight))+
+  geom_violin(fill='#dedb85', alpha = 0.6)+
+  geom_boxplot(fill='#6f9bd1', alpha = 0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Масса раковины')
+grid.arrange(rings, len, diam, height, ww, sw, vw, sw, ncol=4)
+```
+На данных графиках видно, что практически по всех количественных переменных присутствуют выбросы. Для дальнейшего анализа я решил убрать их, используя следующую функцию:
+```{r}
+outliers.rm <- function(x){    
+    q <- quantile(x, 0.25) + quantile(x, 0.75)    
+    return(abs(x - q/2) <= 2*IQR(x))}
+
+mollusk_without_outliers <- mollusk_data %>% filter(across(-c('Sex'), outliers.rm))
+```
+## Оценка наличия взаимосвязи между переменными
+На данном графике видна положительная взаимосвязь между количественными переменными.
+```{r, echo=FALSE, fig.align='center'}
+pairs(select(mollusk_without_outliers, -Sex))
+```
+На основании проведенного EDA можно сформулировать следующие гипотезы:
+
+1. Высота ювенильных особей меньше, чем высота взрослых;
+2. Особи мужского пола обладают большим количеством колец, чем особи женского;
+3. Существует линейная зависимость между диаметром и весом молюска.
+
+# Дальнейший анализ данных
+1. Cреднее значение и стандартное отклонение переменной Length для
+моллюсков разного пола:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+stat_summ <- mollusk_without_outliers %>% group_by(Sex) %>% summarise(mean_length = round(mean(Length), 2), sd_length = round(sd(Length), 2))
+stat_summ
+```
+2. Значение переменной Height не превышает 0.165 у `r round(sum(mollusk_without_outliers$Height <= 0.165) / length(mollusk_without_outliers$Height) * 100, 2)` % молюсков.
+3. Значение переменной Length, которое больше, чем у 92 % от всех наблюдений равно `r as.numeric(quantile(mollusk_without_outliers$Length, 0.92))`.
+4. Произвел преобразование стандартизации переменной Length.
+```{r, echo=FALSE}
+mollusk_without_outliers$Length_z_scores <- (mollusk_without_outliers$Length - mean(mollusk_without_outliers$Length)) / sd(mollusk_without_outliers$Length)
+```
+5. Сравнение диаметра молюсков с числом колец 5 и 15.
+
+Для начала построим график:
+```{r, echo=FALSE}
+ggplot(filter(mollusk_without_outliers, Rings == 5 | Rings == 15), aes(x = factor(Rings), y = Diameter))+
+  geom_boxplot(fill='#dedb85', alpha=0.6)+
+  theme_classic()+
+  xlab('Количество колец')+
+  ylab('Диаметр')
+```
+
+Из данного графика видно, что диаметр молюсков с числом колец 15 больше, чем данный параметр у молюсков с числом колец 5.
+
+Далее проверим гипотезу о равенстве средних между данными группами используя t-критерий Стьюдента. Проверку на нормальность в данном случае я не провожу, так как при количестве наблюдений более 30 t-тест можно применять к данным, распределение которых отлично от нормального (в нашем случае количество наблюдений сильно больше 30).
+```{r, echo=FALSE}
+stat <- t.test(mollusk_without_outliers$Diameter[mollusk_without_outliers == 5], mollusk_without_outliers$Diameter[mollusk_without_outliers == 15])
+```
+```{r, echo=FALSE}
+# Функция для печати p-value
+man_print <- function(x){
+  if (x < 0.001){
+    return('p-value << 0.05')
+  }
+  else {
+    return(paste('p-value =', as.character(x)))
+  }
+}
+```
+
+Значение t-статистики оказалось равно `r round(stat$statistic, 2)`, также `r man_print(stat$p.value)` при количестве наблюдений `r length(mollusk_without_outliers$Diameter[mollusk_without_outliers == 5])` и `r length(mollusk_without_outliers$Diameter[mollusk_without_outliers == 15])` в выборках молюсков с 5 и 15 кольцами соответственно. Следовательно можно сделать вывод у существенных различиях в значениях диаметров у молюсков с 5 и 15 кольцами.
+
+6. Взаимосвязь переменных Diametr и Whole_weight.
+
+Для начала проверим нормальность распределения данных переменных, используя Критерий Шапиро — Уилка.
+```{r, echo=FALSE}
+shapiro.test(mollusk_without_outliers$Diameter)
+shapiro.test(mollusk_without_outliers$Whole_weight)
+```
+Видно, что распределения данных переменных значимо отличаются от нормального, следовательно, для оценки взаимосвязи данных переменных вычислим коэффициент корреляции Спирмена:
+```{r, echo=FALSE, warning=FALSE}
+cor.test(mollusk_without_outliers$Diameter, mollusk_without_outliers$Whole_weight, method = "spearman")
+```
+Эти данные свидетельствуют о наличии сильной взаимосвязи между исследуемыми переменными.
+```{r, echo=FALSE, message=FALSE}
+mollusk_without_outliers %>% ggplot(aes(x = Diameter, y = Whole_weight))+
+  geom_point(aes(col = Sex))+
+  geom_smooth()+
+  theme_classic()+
+  ylab('Масса')+
+  xlab('Диаметр')
+```
+
+По данным графика видно, что при значениях диаметра меньших 0.4 линейная зависимость нарушается. На мой взгляд, эту зависимость можно было бы назвать степенной.
+
+# Дополнительная часть 
+
+## Анализ групп данных, которые соответствуют разным исследователям
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+data_join <- function(directory){
+  setwd(directory)
+  df <- data.frame()
+  for (file in list.files()){
+    if (endsWith(file, suffix = '.csv')){
+      data <- read.csv(file)
+      data$Explorer_name <- substr(file, 1, nchar(file) - 4) 
+      df <- rbind(df, data)
+    }
+  }
+  return(df)
+}
+
+
+directory = 'D:/R_project_1/'
+mollusk_data <- data_join(directory)
+exp_name = mollusk_data$Explorer_name
+mollusk_data <- select(mollusk_data, -Explorer_name) %>% mutate_all(as.numeric)
+mollusk_data$Explorer_name <- exp_name
+colnames(mollusk_data)[2] <- 'Sex'
+mollusk_data$Sex <- factor(mollusk_data$Sex, c(1, 2, 3), labels = c('Male', 'Female', 'Uvenile'))
+mollusk_data <- na.omit(mollusk_data)
+mollusk_without_outliers <- mollusk_data %>% filter(across(-c(Sex, Explorer_name), outliers.rm))
+```
+Для начала я решил посмотреть на то, как в целом данные отличаются в зависимости от исследователя, который их получал. Ниже приведена таблица, которая отражает количество образцов, полученных каждым исследователем, а также среднее значение переменной Height, которое они получили в результате.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+mk <- length(filter(mollusk_without_outliers, Sex == 'Male', Explorer_name == 'Kyrochkina')$Sex)
+fk <- length(filter(mollusk_without_outliers, Sex == 'Female', Explorer_name == 'Kyrochkina')$Sex)
+uk <- length(filter(mollusk_without_outliers, Sex == 'Uvenile', Explorer_name == 'Kyrochkina')$Sex)
+mv <- length(filter(mollusk_without_outliers, Sex == 'Male', Explorer_name == 'Vasechkin')$Sex)
+fv <- length(filter(mollusk_without_outliers, Sex == 'Female', Explorer_name == 'Vasechkin')$Sex)
+uv <- length(filter(mollusk_without_outliers, Sex == 'Uvenile', Explorer_name == 'Vasechkin')$Sex)
+a <- mollusk_without_outliers %>% 
+  group_by(Explorer_name) %>% 
+  summarise(number_of_samples = n(), 
+            mean_height = mean(Height, na.rm = T))
+a
+```
+
+В данной ситуации меня особенно заинтересовали два исследователя: Kyrochkina и Vasechkin, так как они получили минимальное и максимальное количество образцов, 88 и 624 соответственно. Я решил сравнить, различаются ли такие переменные, как Height и Whole weight между группами, соответствующими разным исследователям.
+```{r, echo=FALSE, warning=FALSE}
+t.test(filter(mollusk_without_outliers, Explorer_name == 'Kyrochkina')$Height, filter(mollusk_without_outliers, Explorer_name == 'Vasechkin')$Height)
+t.test(filter(mollusk_without_outliers, Explorer_name == 'Kyrochkina')$Whole_weight, filter(mollusk_without_outliers, Explorer_name == 'Vasechkin')$Whole_weight)
+```
+
+По данным t-теста видно, что данные переменные значимо не отличаются между группами, соответствующими разным исследователям. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+f <- data.frame(Explorer_name = c('Vasechkin', 'Kyrochkina'), 
+                Male = c(round(mv / 624, 2), round(mk / 88, 2)), 
+                Female = c(round(fv / 624, 2), round(fk / 88, 2)),
+                Uvenile = c(round(uv / 624, 2), round(uk / 88, 2)))
+f
+```
+
+Из данной таблицы видно, что у рассматриваемых исследователей есть некоторое предпочтение по полу моллюсков. Так как мы не знаем конкретного вида моллюсков, нельзя точно предположить, возможно ли определить их пол до вскрытия. Если предположить, что можно, то на ум приходит две ситуации: у исследователей действительно есть предпочтения по полу собираемых моллюсков (в такое верится с трудом) или места сбора материала отличались по половому составу в случае двух разных исследователей. Второй вариант наиболее вероятен, но без дополнительной информации нельзя сделать точный вывод.
+
+## Насколько стара мидия
+
+Для начала проверим, есть ли значимые отличия в возрастном составе мужских и женских особей. Для этого воспользуемся критерием Вилкоксона, так как в нашем случае нельзя скзаать, что переменная Rings является непрерывной (скорее это ранг).
+
+```{r, echo=FALSE, warning=FALSE}
+wilcox.test(filter(mollusk_without_outliers, Sex == 'Male')$Rings, filter(mollusk_without_outliers, Sex == 'Female')$Rings)
+```
+
+Видно, что группы мужских и женских особей значимо различаются по возрастному составу. Далее я снова воспользовался критерием Вилкоксона, но уже использовал одностороннюю гипотезу, и выяснилось, что в среднем возраст мужских особей меньше, чем женских.
+
+В целом возраст моллюсков колеблется от 4 до 15 колец. Наиболее представлены особи с числом колец 9. Самых молодых особей 29, а самых возрастных 102, но сделать вывод о том, что в популяции преобладают возрастные особи, наверное, нельзя, так как на гистограмме ниже видно, что распределение несколько смещено в сторону молодых особей.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(mollusk_without_outliers, aes(Rings))+
+  geom_histogram(binwidth = 0.5, fill = 'lightblue')+
+  xlab('Число колец')+
+  ylab('Количество особей')
+```
+
+## Нечто, пришедшее на ум поздно ночью
+
+Переменные, присутствующие в данных навели меня на одну мысль. Так как у нас есть длина, диаметр и высота каждого моллюска, то можно как-то постараться оценить их объем. Я решил воспользоваться формулой для объема эллипсоида вращения, так как моллюск, вероятно, выглядит, как слегка приплюснутый овал.
+
+V = $\frac{4\pi abc}{3}$,
+
+где a, b и с соответствуют даиметру, высоте и длине, деленным на два.
+Так как мы к тому же имеем массу моллюсков, то можно посчитать их плотность. Тогда мы получим одну переменную, отражающую размер и массу. Дальше можно будет посмотреть, как данная переменная распределена по полу и возрасту.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+molluck_density <- 4 / 3 * 3.14 * mollusk_without_outliers$Whole_weight / mollusk_without_outliers$Length / 2 * mollusk_without_outliers$Diameter / 2 * mollusk_without_outliers$Height / 2  
+mollusk_without_outliers$Mollusk_density <- molluck_density
+
+```
+```{r, echo=FALSE, warning=FALSE}
+ggplot(mollusk_without_outliers, aes(x = factor(Sex), y = Mollusk_density))+
+  geom_boxplot(fill='#dedb85', alpha=0.6)+
+  theme_classic()+
+  xlab('Пол')+
+  ylab('Плотность')
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(mollusk_without_outliers, aes(x = factor(Rings), y = Mollusk_density))+
+  geom_boxplot(fill='#dedb85', alpha=0.6)+
+  theme_classic()+
+  xlab('Число колец')+
+  ylab('Плотность')
+```
+
+На данных графиках видно, что плотность моллюсков увеличивается в возрастом, достигая в определенный момент максимума, а дальше, слегка уменьшаясь, выходит на плато. Наверное, с биологической точки зрения это можно связать с тем, что с возрастом у моллюсков несколько больший вклад в общую массу начинает вносить раковина, а она имеет плотность выше, чем внутренние органы.
