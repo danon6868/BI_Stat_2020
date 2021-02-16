@@ -58,3 +58,5 @@
 ### Анализ многомерных данный <a name="mouse"></a>
 
 Данный проект находится в работе...
+
+[https://danon6868.github.io/BI_Stat_2020/project_mouse]
