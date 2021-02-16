@@ -59,4 +59,4 @@
 
 Данный проект находится в работе...
 
-[here](https://danon6868.github.io/BI_Stat_2020/project_mouse/project_mouse.html)
+[here](https://danon6868.github.io/BI_Stat_2020/project_mouse)
