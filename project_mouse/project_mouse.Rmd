@@ -1,0 +1,368 @@
+---
+title: "Project mouse"
+author: "Litvinov Daniil"
+date: "14/02/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: true
+    number_sections: true
+    editor_options:
+    chunk_output_type: console
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, 
+                      include = T, 
+                      warning = F)
+```
+
+```{r, echo=F, message=F, warning=F}
+if (!require('dplyr')){
+  install.packages('dplyr')
+}
+if (!require('ggplot2')){
+  install.packages('ggplot2')
+}
+if (!require('ggcorrplot')){
+  install.packages('ggcorrplot')
+}
+if (!require('corrplot')){
+  install.packages('corrplot')
+}
+if (!require('car')){
+  install.packages('car')
+}
+if (!require('GGally')){
+  install.packages('GGally')
+}
+if (!require('multcomp')){
+  install.packages('multcomp')
+}
+if (!require('readxl')){
+  install.packages('readxl')
+}
+if (!require('vegan')){
+  install.packages('vegan')
+}
+if (!require('factoextra')){
+  install.packages('factoextra')
+}
+if (!require('scatterplot3d')){
+  install.packages('scatterplot3d')
+}
+if (!require('rgl')){
+  install.packages('rgl')
+}
+```
+
+Libraries used:
+
+```{r}
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(car)
+library(multcomp)
+library(GGally)
+library(corrplot)
+library(ggcorrplot)
+library(vegan)
+library(factoextra)
+library(scatterplot3d)
+library(rgl)
+```
+
+```{r, echo = F}
+theme_set(theme_bw())
+```
+
+
+# Introduction
+
+In this work I wiil use data from article about the effect of Down syndrome on different proteins production. Data for this project can be found [here](https://archive.ics.uci.edu/ml/datasets/Mice+Protein+Expression#). 
+
+*Goal* -- conduct EDA, make a few linear models to predict production level of some proteins and also make PCA.
+
+In additional part of this project I will analyze differential expressing genes.
+
+# Data description
+
+## Data description
+
+```{r}
+mouse_data <- read_xls('Data/Data_Cortex_Nuclear.xls')
+str(mouse_data)
+```
+
+You can see that MouseID contain information both about mouse id and about technical repetition. To create new variable **id** in data I made this function:
+
+```{r}
+make_id <- function(data){
+  f <- function(x){
+    list_of_letters <- strsplit(x, '')
+    under_index <- which(list_of_letters[[1]] == '_')
+    return(substr(x, 1, under_index - 1))
+  }
+  ids <- unlist(lapply(data, f))
+  return(ids)
+}
+```
+
+This function takes one argument (column) and return vector, consisting of first parts of strings till "_". So we can get information only about mouse id.
+
+```{r}
+mouse_data$id <- make_id(mouse_data$MouseID)
+```
+
+There are `r length(unique(mouse_data$id))` mice in experiment.
+
+It may be a good idea to make some of our variables as factors:
+
+```{r}
+mouse_data$Genotype <- as.factor(mouse_data$Genotype)
+mouse_data$Treatment <- as.factor(mouse_data$Treatment)
+mouse_data$Behavior <- as.factor(mouse_data$Behavior)
+mouse_data$class <- as.factor(mouse_data$class)
+classes <- levels(mouse_data$class)
+```
+
+we can distinguish `r length(classes)` groups by variable **class**. 
+
+```{r}
+class_pivot_count <- mouse_data %>%
+                      group_by(class) %>% 
+                      summarise(count = n() / 15)
+treat_pivot_count <- mouse_data %>%
+                     group_by(Treatment) %>% 
+                     summarise(count = n() / 15)
+genotype_pivot_count <- mouse_data %>%
+                        group_by(Genotype) %>% 
+                        summarise(count = n() / 15)
+behavior_pivot_count <- mouse_data %>%
+                        group_by(Behavior) %>% 
+                        summarise(count = n() / 15)
+```
+
+This function helps to create barplots of distribution of mice in groups based on different variables:
+
+```{r}
+group_distr_col <- function(data, x, y = 'count'){
+  ggplot(data, aes(x = list(data[x][[1]])[[1]], y = list(data[y][[1]])[[1]])) +
+    geom_col(fill = '#FDC65E') +
+    theme(plot.title = element_text(hjust = 0.5)) + 
+    xlab(paste0('Groups based on variable ', x)) + 
+    ylab('Number of mice') +
+    ggtitle(paste0('Distribution of mice in groups based on variable ', x)) 
+}
+```
+
+```{r}
+group_distr_col(class_pivot_count, 'class')
+group_distr_col(behavior_pivot_count, 'Behavior')
+group_distr_col(treat_pivot_count, 'Treatment')
+group_distr_col(genotype_pivot_count, 'Genotype')
+```
+
+We can see that the groups are not quite balanced and ANOVA that we plan to apply further may be less resistant to violation of the conditions of applicability.
+
+Classes:
+
+- c-CS-s: control mice, stimulated to learn, injected with saline (9 mice)
+- c-CS-m: control mice, stimulated to learn, injected with memantine (10 mice)
+- c-SC-s: control mice, not stimulated to learn, injected with saline (9 mice)
+- c-SC-m: control mice, not stimulated to learn, injected with memantine (10 mice)
+- t-CS-s: trisomy mice, stimulated to learn, injected with saline (7 mice)
+- t-CS-m: trisomy mice, stimulated to learn, injected with memantine (9 mice)
+- t-SC-s: trisomy mice, not stimulated to learn, injected with saline (9 mice)
+- t-SC-m: trisomy mice, not stimulated to learn, injected with memantine (9 mice)
+
+## Making data tidy
+
+Now there is a time to deal with NA. There are `r sum(is.na(mouse_data))` missing values in our dataset.
+
+```{r, echo = F, include = F}
+na_data <- apply(apply(mouse_data, 2, is.na), 2, sum)
+```
+
+It is interesting to check distribution of NAs in different groups. May be some proteins just were not expressed in certain conditions. 
+
+```{r, include = F}
+c_CS_m <- mouse_data[mouse_data$class == 'c-CS-m', ][, 2:78]
+c_CS_s <- mouse_data[mouse_data$class == 'c-CS-s', ][, 2:78]
+c_SC_m <- mouse_data[mouse_data$class == 'c-SC-m', ][, 2:78]
+c_SC_s <- mouse_data[mouse_data$class == 'c-SC-s', ][, 2:78]
+t_CS_m <- mouse_data[mouse_data$class == 't-CS-m', ][, 2:78]
+t_CS_s <- mouse_data[mouse_data$class == 't-CS-s', ][, 2:78]
+t_SC_m <- mouse_data[mouse_data$class == 't-SC-m', ][, 2:78]
+t_SC_s <- mouse_data[mouse_data$class == 't-SC-s', ][, 2:78]
+
+pivot_na_data <- data.frame(class = classes, 
+                            rbind(apply(apply(c_CS_m, 2, is.na), 2, sum),
+                                        apply(apply(c_CS_s, 2, is.na), 2, sum),
+                                        apply(apply(c_SC_m, 2, is.na), 2, sum),
+                                        apply(apply(c_SC_s, 2, is.na), 2, sum),
+                                        apply(apply(t_CS_m, 2, is.na), 2, sum),
+                                        apply(apply(t_CS_s, 2, is.na), 2, sum),
+                                        apply(apply(t_SC_m, 2, is.na), 2, sum),
+                                        apply(apply(t_SC_s, 2, is.na), 2, sum)))
+```
+
+```{r}
+pivot_na_data
+```
+
+Since there are quite a few missing values in the data, I will replace them with group means (class variable).
+
+```{r}
+na_2_mean <- function(df){
+for (cols in colnames(df)) {
+  if (cols %in% names(df[,sapply(df, is.numeric)])) {
+    df <- df %>% mutate(!!cols := replace(!!rlang::sym(cols), is.na(!!rlang::sym(cols)), mean(!!rlang::sym(cols), na.rm=TRUE)))
+  }
+  else {
+    
+    df <- df %>% mutate(!!cols := replace(!!rlang::sym(cols), !!rlang::sym(cols) == "", getmode(!!rlang::sym(cols))))
+  }
+}
+ return(df) 
+}
+
+mouse_data_wo_na <- cbind(mouse_data$MouseID,
+                           mouse_data$id,
+                           mouse_data$class,
+                           mouse_data$Behavior,
+                           mouse_data$Treatment,
+                           mouse_data$Genotype,
+                           rbind(na_2_mean(c_CS_m),
+                           na_2_mean(c_CS_s),
+                           na_2_mean(c_SC_m),
+                           na_2_mean(c_SC_s),
+                           na_2_mean(t_CS_m),
+                           na_2_mean(t_CS_s),
+                           na_2_mean(t_SC_m),
+                           na_2_mean(t_SC_s)))
+
+colnames(mouse_data_wo_na)[1:6] <- c('MouseID',
+                                     'id',
+                                     'class',
+                                     'Behavior',
+                                     'Treatment',
+                                     'Genotype')
+```
+
+Let's do a little check to see if NAs were really replaced by group means.
+
+```{r}
+na_2_mean(c_CS_s)[is.na(c_CS_s$H3MeK4_N), ]$H3MeK4_N[1] == mean(c_CS_s$H3MeK4_N, na.rm = T)
+```
+
+It looks nice so I can go to the next analysis.
+
+# BDNF_N production level depending on the class
+
+I am going to conduct ANOVA in this case:
+
+```{r}
+bdnf_mod <- lm(BDNF_N ~ class, data = mouse_data_wo_na)
+av_bdn_mod <- Anova(bdnf_mod)
+av_bdn_mod
+```
+
+We can see that **class** is a significant predictor. So we can assume that there are some differences in the BDNF_N production level depending on the class in experiment. But 
+but first we have to check the conditions of applicability and conduct post-hoc tests.
+
+## Checking the applicability conditions 
+
+```{r}
+bdnf_mod_diag <- fortify(bdnf_mod)
+```
+
+**Graph of Cook's distances**
+
+There are several heuristics for calculating threshold for Cook's distances. It can be just 2, 3 * mean(y) or $\frac4n$, where n is number of samples. Here I am going to use third.
+
+```{r}
+cook_threshold <- 4 / nrow(mouse_data_wo_na)
+```
+
+
+```{r}
+ggplot(bdnf_mod_diag, aes(x = 1:nrow(bdnf_mod_diag), y = .cooksd)) +
+  geom_bar(stat = 'identity') +
+  geom_hline(yintercept = cook_threshold, color = "red") + 
+  xlab("Samle number") + 
+  ylab("Cook's distance") +
+  ggtitle("Graph of Cook's distances") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+There are `r sum(bdnf_mod_diag$.cooksd > cook_threshold)` samples which are a little bit bigger than threshold, but it is okey and I will not drop these samples from model.
+
+**Model residues**
+
+
+Residuals plots show that there are quite a few poorly predicted values, but no particular pattern is observed, also the median value of residuals in different classes is approximately the same and is close to zero.
+
+```{r}
+ggplot(data = bdnf_mod_diag, aes(x = .fitted, y = .stdresid)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "lm") +
+  geom_hline(yintercept = 2, color = "red") +
+  geom_hline(yintercept = -2, color = "red") +
+  xlab('Prediction') + 
+  ylab('Standardized residuals') +
+  ggtitle('Distribution of standardized residuals of model\nin fitted values') +
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggplot(bdnf_mod_diag, aes(x = class, y = .stdresid)) +
+  geom_boxplot() + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab('Class') + 
+  ylab('Standardized residuals') +
+  ggtitle('Distribution of standardized residuals of model\nin class')
+```
+
+**Normal distribution of model residuals**
+
+Despite the fact that we cannot name the distribution of the residuals of the model like a normal, we may try to apply ANOVA, since qqplot looks good and other conditions generally applicable and also we have lots of samples that is good for ANOVA.
+
+```{r}
+qqPlot(bdnf_mod, xlab = 'Normal distribution quantiles', ylab = 'Quantiles of the distribution of the model residuals')
+shapiro.test(bdnf_mod_diag$.resid)
+```
+
+**Post-hoc tests**
+
+Here I will use Tukey post-hoc test:
+
+```{r}
+res_tukey <- glht(bdnf_mod, linfct = mcp(class = 'Tukey'))
+summary(res_tukey)
+```
+
+**Post-hoc tests visualization**
+
+```{r}
+data <-  expand.grid(class = mouse_data_wo_na$class)
+data <- data.frame(data,
+                   predict(bdnf_mod, newdata = data, interval = 'confidence'))
+pos <- position_dodge(width = 0.2)
+gg_linep <- ggplot(data, aes(x = class, y = fit,
+                             ymin = lwr, ymax = upr)) + 
+  geom_point(position = pos) +
+  geom_errorbar(position = pos, width = 0.2) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab('Class') + 
+  ylab('Predicted mean') +
+  ggtitle('Dependence of the predicted\nmean expression of BDNF_N in the class')
+gg_linep
+```
+
+
+It can be seen that there is a significant dependence of the BDNF_N production in the class in the experiment.
+
+
+
