@@ -1,62 +1,62 @@
-## Проекты по статистике в Институте биоинформатики 2020/21
+## Projects on statistics at the Bioinformatics Institute 2020/21
 
 
-### Содержание
-1. [Проект № 1 &ndash; Первичный анализ данных и EDA](#eda)
-2. [Проект № 2 &ndash; Линейные модели](#lm)
-3. [Дополнительный проект &ndash; Дисперсионный анализ (ANOVA)](#anova)
-3. [Проект № 3 &ndash; Анализ многомерных данных](#mouse)
+### Content
+1. [Project № 1 &ndash; Exploratory data analysis (EDA)](#eda)
+2. [Project № 2 &ndash; Linear models](#lm)
+3. [Project № 3 &ndash; Analysis of variance (ANOVA)](#anova)
+3. [Проект № 4 &ndash; Protein expression analysis](#mouse)
 
-### Первичный анализ данных и EDA <a name="eda"></a>
+### Exploratory data analysis (EDA) <a name="eda"></a>
 
-В ходе данного проекта предлагалось поработать с [данными](https://github.com/danon6868/BI_Stat_2020/tree/main/project_eda/Data) о моллюсках: их возраст, пол и различные размеры. Эти данные были собраны десятью людьми и находились в разных файлах.
+During this project, it was proposed to work with [data] (https://github.com/danon6868/BI_Stat_2020/tree/main/project_eda/Data) about molluscs: their age, sex and different sizes. This data was collected by ten people and was located in different files.
 
-Первое, что было необходимо сделать, это написать пользовательскую функцию для объединения этих файлов и привести данные в соответствие с конфепцией tidy data. Далее я провел краткий EDA, посчитал разные описательные статистики, сравнил некоторые группы мидий между собой и т.д. Более подробное описание заданий можно найти [здесь](https://github.com/danon6868/BI_Stat_2020/blob/main/project_eda/Project_1.pdf). 
+The first thing to do was writing a custom function to merge these files and match the data with the tidy data confession. Then I made a short EDA, counted various descriptive statistics, compared some groups of mussels with each other, etc. A more detailed description of the tasks can be found [here](https://github.com/danon6868/BI_Stat_2020/blob/main/project_eda/Project_1.pdf). 
 
-В ходе дополнительной части я решил посмотреть, как влияет человек, собиравший данные на распределение различных переменных. В итоге выяснилось, что часто половой и возрастной состав моллюсков сильно отличается в данных разных людей. Это можно было бы связать с разными местами сбора материала, но дополнительной информацией я не располагал.
+In the course of an additional part, I decided to look at how the person collecting the data affects the distribution of various variables. As a result, it turned out that often the sex and age composition of mollusks is very different in the data of different people. This could be associated with different places where the material was collected, but I did not have additional information.
 
-При желании Вы можете ознакомиться с отчетом по проделанной работе в формате [rdm](https://github.com/danon6868/BI_Stat_2020/blob/main/project_eda/project_eda.rmd) и [html](https://danon6868.github.io/BI_Stat_2020/project_eda). 
+If you wish, you can familiarize yourself with the report on the work done in the format [Rdm](https://github.com/danon6868/BI_Stat_2020/blob/main/project_eda/project_eda.rmd) or [html](https://danon6868.github.io/BI_Stat_2020/project_eda). 
 
-### Линейные модели <a name="lm"></a>
-В рамках данной задачи я работал со встроенные в пакет MASS данными о стоимости жилья в Бостоне в 1070-80-х годах (датафрйм Boston). Нужно было посмотреть, как средняя стоимость домов, занимаемых взадельцами, зависит от различных факторов (близость к реке, количество учителей в школах и т.д.). Подробное описание задания можно найти [тут](https://github.com/danon6868/BI_Stat_2020/blob/main/project_lm/project_lm.pdf) 
+### Linear models <a name="lm"></a>
+During this project I worked with data on the cost of housing in Boston in the 1070s and 80s built into the MASS package (Boston dataframe). It was necessary to see how the average cost of home-occupied houses depends on various factors (proximity to the river, the number of teachers in schools, etc.). A detailed description of the task can be found [here](https://github.com/danon6868/BI_Stat_2020/blob/main/project_lm/project_lm.pdf) 
 
-Основная часть работы состояла из следующих шагов:
+The main part of the work consisted of the following steps:
 
-1. Построение полной линейной модели со стандартизованными предикторами без их взаимодействия.
-2. Диагностика полученной модели:
-  1. Проверка линейности взаимосвязи
-  2. Проверка на отсутствие влиятельных наблюдений
-  3. Нормальность распределения остатков модели
-  4. Постоянство дисперсии
-3. Построение графика предсказаний стоимости от переменной, которая обладала нибольшим по модулю коэффициентом в модели
+1. Building a complete linear model with standardized predictors without interaction
+2. Diagnostics of the resulting model:
+  1. Checking the linearity of the relationship
+  2. Checking for the absence of influential observations
+  3. Normal distribution of the residuals of the model
+  4. Homoscedasticity
+3. Plotting cost predictions from the largest variable by absolut value
 
-Полная модель оказалась довольно плохой, были нарушены практически все условия применимости линейных моделей.
+The complete model turned out to be rather bad, almost all conditions of applicability of linear models were violated.
 
-В ходе дополнительной части нужно было постараться понять, на улучшениии каких аспектов стоит сосредоточиться, чтобы максимизировать цену за продаваемый дом и попытаться описать идеальный район для постройки дома.
+During the additional part, it was necessary to try to understand which aspects to improve and what aspects to focus on in order to maximize the price of the house for sale and try to describe the ideal area to build a house.
 
-В этой части я убрал некоторые предикторы, так как они вносили мультиколлинеарность в данные. Делал я это на основании расчета VIF (variance inflation factor), пороговое значение равнялось 2. После этого я оставил в модели только те предикторы, которые значимо влияют на зависимую переменную. В итоге модель получилась не идеальная, но сильно лучше, чем в первом шаге. В итоге мною был сформулирован ряд рекомендаций по выбору района для постройки домов. 
+In this part, I removed some predictors as they introduced multicollinearity to the data. I did this on the basis of VIF (variance inflation factor) calculation, the threshold value was 2. After that, I left in the model only those predictors that significantly affect the dependent variable. As a result, the model turned out to be not perfect, but much better than in the first step. As a result, I formulated a number of recommendations for choosing an area for building houses. 
 
-Подробный отчет в формате [rmd](https://github.com/danon6868/BI_Stat_2020/blob/main/project_lm/project_lm_Rmd) и [html](https://danon6868.github.io/BI_Stat_2020/project_lm).
+A detailed report in format [Rmd](https://github.com/danon6868/BI_Stat_2020/blob/main/project_lm/project_lm_Rmd) и [html](https://danon6868.github.io/BI_Stat_2020/project_lm).
 
-### Дисперсионный анализ (ANOVA) <a name="anova"></a>
+### Analysis of variance (ANOVA) <a name="anova"></a>
 
-В этой работе я анализировал [данные](https://github.com/danon6868/BI_Stat_2020/blob/main/project_anova/project_anova.pdf), которые были собраны двадцатью разными врачами. Я располагал информацией о двухста поциентах, для которых был известен пол, возраст, количество дней, поведенных в госпитале, наличие рецидива, а также тип лекарства, которым лечили данного пациента. 
+In this project I analyse [data set](https://github.com/danon6868/BI_Stat_2020/blob/main/project_anova/project_anova.pdf), which was collected by twenty different doctors. I had information on two hundred patients for whom the sex, age, number of days spent in the hospital, the presence of a relapse, and the type of medicine with which the patient was treated was known. 
 
-Необоходимо было сделать следущее:
+It was necessary to do the following:
 
-1. Написать пользовательскую функцию для объединения файлов одного расширения в общий датафрейм. Эта функция принимает путь до папки с данными, а также тип файлов, которые она будет анализировать.
-2. Проверить корректность данных и привести их в соответствие с концепцией tidy data. Провести EDA.
-3. Провести двухфакторный дисперсионный анализ (по факторам тип лекарства и пол) числа дней в госпитале.
-4. Проверить условия применимости дисперсионного анализа.
-5. Провести трактовку результатов модели.
-6. Выполнить пост-хок тесты и описать полученные результаты.
+1. Create a custom function to combine files of the same extension into a common dataframe. This function takes the path to the data folder, as well as the type of files that it will parse.
+2. Check the correctness of the data and bring it into line with the tidy data concept. Conduct an EDA.
+3. Conduct a two-way ANOVA (by type of drug and gender) for the number of days in the hospital.
+4. Check the conditions of applicability of the analysis of variance.
+5. Interpret the results of the model.
+6. Perform post-hoc tests and describe the results obtained.
 
-Основной результат работы состоит в том, что людям разного пола необходимо выписывать разные типы лекарств. Неверно подобранный препарат может даже увеличить время восстановления по сравнению с плацебо.
+Основной вывод работы состоит в том, что людям разного пола необходимо выписывать разные типы лекарств. Неверно подобранный препарат может даже увеличить время восстановления по сравнению с плацебо.
 
 Вы можете посмотреть подробный отчет с формате [rmd](https://github.com/danon6868/BI_Stat_2020/blob/main/project_anova/project_anova.Rmd) и [html](https://danon6868.github.io/BI_Stat_2020/project_anova).
 
-### Анализ многомерных данный <a name="mouse"></a>
+### Protein expression analysis <a name="mouse"></a>.
 
-Данный проект находится в работе...
+In this project, I analyzed [data] (https://archive.ics.uci.edu/ml/datasets/Mice+Protein+Expression#) about the expression of proteins in different classes of mice. The data set consisted of the expression levels of 77 proteins/protein modifications that produced detectable signals in the nuclear fraction of cortex. The eight classes of mice were described based on features such as genotype, behavior and treatment. According to genotype, mice can be control or trisomic. According to behavior, some mice have been stimulated to learn (context-shock) and others have not (shock-context) and in order to assess the effect of the drug memantine in recovering the ability to learn in trisomic mice, some mice have been injected with the drug and others have not. The aim is to identify subsets of proteins that are discriminant between the classes.
 
 [here](https://danon6868.github.io/BI_Stat_2020/project_mouse)
