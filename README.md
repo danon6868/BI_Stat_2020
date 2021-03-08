@@ -5,11 +5,12 @@
 1. [Project № 1 &ndash; Exploratory data analysis (EDA)](#eda)
 2. [Project № 2 &ndash; Linear models](#lm)
 3. [Project № 3 &ndash; Analysis of variance (ANOVA)](#anova)
-3. [Проект № 4 &ndash; Protein expression analysis](#mouse)
+4. [Project № 4 &ndash; Protein expression analysis](#mouse)
+5. [Project № 5 &ndash; Survival analysis](#survival)
 
 ### Exploratory data analysis (EDA) <a name="eda"></a>
 
-During this project, it was proposed to work with [data] (https://github.com/danon6868/BI_Stat_2020/tree/main/project_eda/Data) about molluscs: their age, sex and different sizes. This data was collected by ten people and was located in different files.
+During this project, it was proposed to work with [data](https://github.com/danon6868/BI_Stat_2020/tree/main/project_eda/Data) about molluscs: their age, sex and different sizes. This data was collected by ten people and was located in different files.
 
 The first thing to do was writing a custom function to merge these files and match the data with the tidy data confession. Then I made a short EDA, counted various descriptive statistics, compared some groups of mussels with each other, etc. A more detailed description of the tasks can be found [here](https://github.com/danon6868/BI_Stat_2020/blob/main/project_eda/Project_1.pdf). 
 
@@ -60,3 +61,7 @@ It was necessary to do the following:
 In this project, I analyzed [data] (https://archive.ics.uci.edu/ml/datasets/Mice+Protein+Expression#) about the expression of proteins in different classes of mice. The data set consisted of the expression levels of 77 proteins/protein modifications that produced detectable signals in the nuclear fraction of cortex. The eight classes of mice were described based on features such as genotype, behavior and treatment. According to genotype, mice can be control or trisomic. According to behavior, some mice have been stimulated to learn (context-shock) and others have not (shock-context) and in order to assess the effect of the drug memantine in recovering the ability to learn in trisomic mice, some mice have been injected with the drug and others have not. The aim is to identify subsets of proteins that are discriminant between the classes.
 
 [here](https://danon6868.github.io/BI_Stat_2020/project_mouse)
+
+### Survival analysis <a name="survival"></a>
+
+You can find my report in html [here](https://danon6868.github.io/BI_Stat_2020/project_survival)
