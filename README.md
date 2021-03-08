@@ -64,4 +64,4 @@ In this project, I analyzed [data] (https://archive.ics.uci.edu/ml/datasets/Mice
 
 ### Survival analysis <a name="survival"></a>
 
-You can find my report in html [here](https://danon6868.github.io/BI_Stat_2020/project_survival))
+You can find my report in html [here](https://danon6868.github.io/BI_Stat_2020/project_survival)
