@@ -38,6 +38,15 @@ if (!requireNamespace("ggfortify", quietly = TRUE))
   install.packages("ggfortify")
 if (!requireNamespace("coin", quietly = TRUE))
   install.packages("coin")
+  
+library(survival)
+library(survminer)
+library(ranger)
+library(ggplot2)
+library(dplyr)
+library(ggfortify)
+library(coin)
+library(gridExtra)
 ```
 
 # Indtoduction
