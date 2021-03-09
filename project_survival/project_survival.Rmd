@@ -22,14 +22,22 @@ knitr::opts_chunk$set(
 ```
 
 ```{r}
-library(survival)
-library(survminer)
-library(ranger)
-library(ggplot2)
-library(dplyr)
-library(ggfortify)
-library(coin)
-library(gridExtra)
+if (!requireNamespace("survival", quietly = TRUE))
+  install.packages("survival")
+if (!requireNamespace("survminer", quietly = TRUE))
+  install.packages("survminer")
+if (!requireNamespace("ggplot2", quietly = TRUE))
+  install.packages("ggplot2")
+if (!requireNamespace("dplyr", quietly = TRUE))
+  install.packages("dplyr")
+if (!requireNamespace("gridExtra", quietly = TRUE))
+  install.packages("gridExtra")
+if (!requireNamespace("ranger", quietly = TRUE))
+  install.packages("ranger")
+if (!requireNamespace("ggfortify", quietly = TRUE))
+  install.packages("ggfortify")
+if (!requireNamespace("coin", quietly = TRUE))
+  install.packages("coin")
 ```
 
 # Indtoduction
