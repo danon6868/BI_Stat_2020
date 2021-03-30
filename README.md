@@ -7,6 +7,7 @@
 3. [Project № 3 &ndash; Analysis of variance (ANOVA)](#anova)
 4. [Project № 4 &ndash; Protein expression analysis](#mouse)
 5. [Project № 5 &ndash; Survival analysis](#survival)
+6. [Project № 6 &ndash; Logistic regression](#log_regr)
 
 ### Exploratory data analysis (EDA) <a name="eda"></a>
 
@@ -65,3 +66,7 @@ In this project, I analyzed [data] (https://archive.ics.uci.edu/ml/datasets/Mice
 ### Survival analysis <a name="survival"></a>
 
 You can find my report in html [here](https://danon6868.github.io/BI_Stat_2020/project_survival)
+
+### Logistic regression <a name="log_regr"></a>
+
+You can find my report in html [here](https://danon6868.github.io/BI_Stat_2020/project_log_regr.html)
