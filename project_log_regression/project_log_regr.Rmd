@@ -1,0 +1,273 @@
+---
+title: "Project log regression"
+author: "Litvinov Daniil"
+date: "3/29/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: true
+    number_sections: true
+editor_options:
+    chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	include = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(car)
+library(ROCR)
+```
+
+# EDA
+
+A researcher is interested in how variables, such as GRE (Graduate Record Exam scores), GPA (grade point average) and prestige of the undergraduate institution, effect admission into graduate school. The response variable, admit/don’t admit, is a binary variable.
+
+```{r}
+path <- "~/bioinf_institute/statistics/projects/BI_Stat_2020/data/binary.csv"
+grad_data <- read.csv(path)
+grad_data
+```
+
+
+```{r}
+str(grad_data)
+summary(grad_data)
+```
+
+We have `r (1 - mean(grad_data$admit)) * 400` observations in the 1st class (**admit** = 0) and `r mean(grad_data$admit) * 400` observations in 2nd class (**admit** = 1). It means that in general there is a little class disbalance, but it is not very big.
+
+We have `r nrow(grad_data)` observations. Let's see how many NAs are in dataset. There are `r sum(colSums(is.na(grad_data)))` NAs, so it is pretty nice.
+
+We also want to mutate **admit** and **rank** into factors.
+
+```{r}
+grad_data$admit <- as.factor(grad_data$admit)
+grad_data$rank <- as.factor(grad_data$rank)
+```
+
+I also going to standardise all numeric covariates, while it cause better interpretation of logistic regression coefficients.
+
+```{r}
+GRE <- grad_data$gre 
+grad_data$gre <- scale(grad_data$gre)
+grad_data$gpa <- scale(grad_data$gpa)
+```
+
+
+We can see that there is no dependence between **gre** and **rank** within **admit** groups. 
+
+```{r}
+ggplot(data = grad_data, aes(x = rank, y = gre, fill = admit)) +
+  geom_boxplot()
+```
+
+There are some dependences between **gpa** and **rank** within **admit** groups.
+
+```{r}
+ggplot(data = grad_data, aes(x = rank, y = gpa, fill = admit)) +
+  geom_boxplot()
+```
+
+Here we can see some correlation between **gre** and **gpa**. It is logically but we need to take it into account.
+
+```{r}
+ggplot(data = grad_data, aes(x = gpa, y = gre)) +
+  geom_point() +
+  geom_smooth()
+```
+
+# Full model
+
+I am going to build a full model and then, if it will depend, use *backward selection* to leave only significant covariates.
+
+```{r}
+full_mod <- glm(admit ~ ., family = binomial(link = 'logit'), data = grad_data)
+Anova(full_mod)
+```
+
+The Chi-square test is used to evaluate significant predictors in logistic regression. The selection criterion  usually is AIC (Akaike information criterion).
+
+In our case all predictors are significant (by the way we have only three :).
+
+But as we have seen above there is some correlation between **gpa** and **gre**. Lets check if ejection one of these predictors make our model better.
+
+```{r}
+mod_1 <- glm(admit ~ . - gre, family = binomial(link = 'logit'), data = grad_data)
+anova(full_mod, mod_1, test="Chisq")
+mod_2 <- glm(admit ~ . - gpa, family = binomial(link = 'logit'), data = grad_data)
+anova(full_mod, mod_2, test="Chisq")
+```
+
+Seems like the full model is the best way here.
+
+# Model diagnostic
+
+Before proceeding to the interpretation of the model, it is necessary to check its correctness.
+
+## Linearity check
+
+In general, the linearity of the relationship is not so obvious, but in general it does not look critical.
+
+```{r}
+full_mod_diag <- data.frame(.fitted = fitted(full_mod, type = 'response'),
+                        .resid_p = resid(full_mod, type = 'pearson'))
+
+ggplot(full_mod_diag, aes(y = .resid_p, x = .fitted)) + 
+  geom_point() +
+  theme_bw() +
+  geom_hline(yintercept = 0) +  
+  geom_smooth(method = 'loess')
+```
+
+## Overdispersion check
+
+We use the author's [function](http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html) (Ben Bolker) to check for overdispersion. Everything is fine.
+
+```{r}
+overdisp_fun <- function(model) {
+  rdf <- df.residual(model)  # Число степеней свободы N - p
+  if (any(class(model) == 'negbin')) rdf <- rdf - 1 # учитываем k в NegBin GLMM
+  rp <- residuals(model,type='pearson') # Пирсоновские остатки
+  Pearson.chisq <- sum(rp^2) # Сумма квадратов остатков, подчиняется Хи-квадрат распределению
+  prat <- Pearson.chisq/rdf  # Отношение суммы квадратов остатков к числу степеней свободы
+  pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE) # Уровень значимости
+  c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)        # Вывод результатов
+}
+
+overdisp_fun(full_mod)
+```
+
+# Interpretation of model coefitients
+
+The final model looks the following way:
+
+**admit = 0.067 + 0.262 * gre + 0.305 * gpa - 0.675 * rank2 - 1.34 * rank3 - 1.551 * rank4**
+
+b0 (intercept) --- logarithm of the odds ratio for the base level of the discrete factor while all covariates are equal theirs mean.
+
+b1-b2 --- by how many units the logarithm of the odds ratio (logit) changes if the predictor value changes by one.
+
+b3-b5 --- by how many units does the logarithm of the odds ratio (logit) change for a given discrete factor level compared to the baseline (rank1)
+
+## Model interpreting
+
+Odds ratio for admitting is lower in $\frac{1}{e^{-1.55}} = 5$ times for **rank4 prestige** comparing with **rank1**.
+
+With an increase in the average graduate point by one (**gpa**), the odds ratio of getting admitted will increase by $e ^ {0.262} = 1.3$ times. The more points, the higher the admission chance. It is also very similar with **gre** (by the way these variables have some correlation).
+
+## Select best cutoff
+
+let's choose a threshold, above which we will assign the observation to class 1, and below to class 0. To do this, we will use metrics such as sensitivity, specificity, and accuracy. And also we will plot the ROC curve in order to evaluate our classifier as a whole.
+
+```{r}
+pred_admit <- predict(object = full_mod, type = "response")
+grad_data$admit_prob <- pred_admit
+pred_fit <- prediction(pred_admit, grad_data$admit)
+perf_fit <- performance(pred_fit, "tpr", "fpr")
+plot(perf_fit, colorize = TRUE, print.cutoffs.at = seq(0, 1, by = 0.1))
+```
+
+```{r}
+auc <- performance(pred_fit, measure = "auc")
+str(auc)
+```
+
+The ROC curve is not perfect and the area under the curve is *0.693*. 
+
+```{r}
+perf1 <- performance(pred_fit, x.measure = "cutoff", measure = "spec")
+perf2 <- performance(pred_fit, x.measure = "cutoff", measure = "sens")
+perf3 <- performance(pred_fit, x.measure = "cutoff", measure = "acc")
+
+plot(perf1, col = "red", lwd = 2)
+plot(add = TRUE, perf2, col = "blue", lwd = 2)
+plot(add = TRUE, perf3, col = "black", lwd = 2)
+
+legend(x = 0.6, y = 0.3, c("spec", "sens", "accur"),
+       lty = 1, col = c("red", "green", "black"), 
+       bty = "n", cex = 1, lwd = 2)
+
+abline(v = 0.32, lwd = 2)
+```
+
+According to this plot, we can choose the best threshold value. This is about 0.32.
+
+```{r}
+grad_data$pred_admit <- factor(ifelse(pred_admit > 0.32, 1, 0))
+grad_data$correct <- ifelse(grad_data$admit == grad_data$pred_admit, 1, 0)
+head(grad_data)
+```
+
+```{r}
+ggplot(grad_data, aes(admit_prob, fill = factor(correct))) +
+  geom_dotplot()
+```
+
+Our model gives correct answers in 64%  of train cases. The scatterplot also shows that at this threshold value (0.32), we still have a fairly high FPR.
+
+## Predictions of model
+
+Based on the artificial dataset and our model, we will make predictions.
+
+```{r}
+new_data <- grad_data %>% group_by(rank) %>%
+  do(data.frame(gre = seq(from = min(.$gre), to = max(.$gre), length.out = 100), gpa = mean(.$gpa)))
+head(new_data)
+```
+
+
+```{r}
+X <- model.matrix(~ gre + gpa + rank, data = new_data)
+b <- coef(full_mod)
+
+new_data$fit_eta <- X %*% b
+new_data$se_eta <- sqrt(diag(X %*% vcov(full_mod) %*% t(X)))
+
+logit_back <- function(x) exp(x)/(1 + exp(x))
+new_data$fit_pi <- logit_back(new_data$fit_eta)
+new_data$lwr_pi <- logit_back(new_data$fit_eta - 2 * new_data$se_eta)
+new_data$upr_pi <- logit_back(new_data$fit_eta + 2 * new_data$se_eta)
+new_data$old_gre <- GRE
+
+head(new_data, 2)
+```
+
+## Plot of predictions at the scale of the link function
+
+```{r}
+ggplot(new_data, aes(x = gre, y = fit_eta, fill = rank))  + 
+  geom_line(aes(color = rank)) +
+  geom_ribbon(aes(ymin = fit_eta - 2 * se_eta, ymax = fit_eta + 2 * se_eta), alpha = 0.5)+
+  theme_bw()
+```
+
+## Plot of predictions at the scale of the responce
+
+```{r}
+ggplot(new_data, aes(x = gre, y = fit_pi, fill = rank)) +
+  geom_ribbon(aes(ymin = lwr_pi, ymax = upr_pi), alpha = 0.5) +
+  geom_line(aes(color = rank)) +
+  labs(y='Probability', x = 'Standardised gre', title = 'Probability of being admitted') +
+  theme_bw()
+```
+
+As a result with the threshold we can already classify the test observations to one or another class.
+
+```{r}
+new_data$fit_class <- ifelse(new_data$fit_pi > 0.32, 1, 0)
+ggplot(data = new_data, aes(x = old_gre, y = fit_class)) +
+  geom_point()
+```
+
+# Сonclusion
+
+We can see that exam scores alone cannot accurately determine admission. This is also greatly influenced by the prestige of the previous educational institution (**rank**). There can be several explanations for this: for example, in better schools it is more difficult to pass the exam and high scores there mean the best knowledge among applicants or, for example, there are some preferences towards students of more prestigious schools.
