@@ -1,4 +1,4 @@
-### Exploratory data analysis (EDA) <a name="eda"></a>
+## Exploratory data analysis (EDA)
 
 During this project, it was proposed to work with [data](https://github.com/danon6868/BI_Stat_2020/tree/main/project_eda/Data) about molluscs: their age, sex and different sizes. This data was collected by ten people and was located in different files.
 

@@ -1,1 +1,5 @@
-# Mouse project
+## Protein expression analysis
+
+In this project, I analyzed [data] (https://archive.ics.uci.edu/ml/datasets/Mice+Protein+Expression#) about the expression of proteins in different classes of mice. The data set consisted of the expression levels of 77 proteins/protein modifications that produced detectable signals in the nuclear fraction of cortex. The eight classes of mice were described based on features such as genotype, behavior and treatment. According to genotype, mice can be control or trisomic. According to behavior, some mice have been stimulated to learn (context-shock) and others have not (shock-context) and in order to assess the effect of the drug memantine in recovering the ability to learn in trisomic mice, some mice have been injected with the drug and others have not. The aim is to identify subsets of proteins that are discriminant between the classes.
+
+You can view a detailed report with the format [rmd](https://github.com/danon6868/BI_Stat_2020/blob/main/project_anova/project_mouse.Rmd) and [html](https://danon6868.github.io/BI_Stat_2020/project_mouse).
