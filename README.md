@@ -2,7 +2,7 @@
 
 
 ### Content
-1. [Project № 1 &ndash; Exploratory data analysis (EDA)](#eda)
+1. [Project № 1 &ndash; Exploratory data analysis (EDA)](https://github.com/danon6868/BI_Stat_2020/tree/main/project_eda)
 2. [Project № 2 &ndash; Linear models](#lm)
 3. [Project № 3 &ndash; Analysis of variance (ANOVA)](#anova)
 4. [Project № 4 &ndash; Protein expression analysis](#mouse)
